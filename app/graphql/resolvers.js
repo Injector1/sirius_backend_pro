@@ -1,54 +1,6 @@
 const User = require('../models/user')
 const Post = require('../models/post')
-
-
-const allUsers = [
-    {
-        id: 1,
-        name: 'The Awakening',
-        surname: 'Kate Chopin',
-        email: 'dsfsdf'
-    },
-    {
-        id: 2,
-        name: 'The Awakening',
-        surname: 'Kate Chopin',
-        email: 'dsfsdf'
-    },
-];
-
-const allPosts = [
-    {
-        id: 1,
-        authorId: 1,
-        title: "OPPP",
-        content: "949494949",
-    },
-    {
-        id: 2,
-        authorId: 1,
-        title: "Abcd",
-        content: "234322",
-    }
-]
-
-const allComments = [
-    {
-        id: 1,
-        authorId: 2,
-        postId: 2,
-        content: "FUCK!!!",
-        replies: [
-            {
-                id: 2,
-                authorId: 2,
-                postId: 2,
-                content: "fsdfsdf",
-            }
-        ]
-    }
-]
-
+const Comment = require('../models/comment')
 
 module.exports = {
     Query: {
@@ -76,7 +28,22 @@ module.exports = {
                 "error": "No post found"
             }
         },
-        comments: () => allComments
+        comments: async () => {
+            const comments = await Comment.all()
+            if (comments) return comments
+        },
+        getCommentById: async (parent, {id}, context, info) => {
+            const comment = await Comment.findOne({_id: id})
+            if (comment) return comment
+        },
+        getCommentsToPost: async (parent, {postId}, context, info) => {
+            const comments = await Comment.find({postId: postId})
+            if (comments) return comments
+        },
+        getRepliesToComment: async (parent, {id}, context, info) => {
+            const replies = await Comment.find({replyTo: id})
+            if (replies) return replies
+        }
     },
     Mutation: {
         addUser: async (parent, {name, surname, email}, context, info) => {
@@ -147,6 +114,36 @@ module.exports = {
             })
             let updatedPost = await Post.findOne({_id: id, authorId: authorId})
             return updatedPost
+        },
+        addComment: async (parent, {authorId, postId, content, replyTo}) => {
+            const comment = new Comment({
+                authorId: authorId,
+                postId: postId,
+                content: content,
+                replyTo: replyTo ? replyTo : 0
+            })
+
+            await comment.save((err) => {
+                if (err) return console.log(err)
+            })
+            return comment
+        },
+        deleteComment: async (parent, {id, authorId}) => {
+            const comment = await Comment.findOne({_id: id, authorId: authorId})
+            let commentCopy = comment
+            if (comment) {
+                await comment.delete((err) => {
+                    console.log(err)
+                })
+                return commentCopy
+            }
+        },
+        updateComment: async (parent, {id, authorId, content}) => {
+            await Comment.updateOne({_id: id, authorId: authorId}, {
+                content: content
+            })
+            const updatedComment = await Comment.findOne({_id: id, authorId:authorId})
+            return updatedComment
         }
     }
 }
